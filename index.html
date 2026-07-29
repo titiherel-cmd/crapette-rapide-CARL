@@ -13,8 +13,6 @@
       display: flex; flex-direction: column; align-items: center; height: 100vh;
     }
     h1 { margin: 5px 0; font-size: 1.2rem; }
-    
-    /* Ecran de connexion */
     #setup-screen {
       background: rgba(0,0,0,0.4); padding: 15px; border-radius: 10px;
       text-align: center; width: 100%; max-width: 350px; margin-top: 20px;
@@ -24,14 +22,8 @@
       background: #e67e22; color: white; border: none; padding: 10px 20px;
       font-size: 1rem; font-weight: bold; border-radius: 5px; cursor: pointer; margin: 5px;
     }
-    button:active { background: #d35400; }
-
-    /* Zone du Jeu */
     #game-screen { display: none; width: 100%; max-width: 400px; height: 100%; flex-direction: column; justify-content: space-between; }
-    
     .status-bar { text-align: center; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 5px; font-size: 0.9rem; }
-    
-    /* Cartes */
     .card {
       width: 55px; height: 80px; border-radius: 6px; background: white; color: black;
       display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2rem;
@@ -41,17 +33,11 @@
     .card.back { background: #2980b9; color: white; border-color: white; }
     .card.selected { border: 3px solid #f1c40f; transform: scale(1.05); }
     .card.empty { background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); }
-
-    /* Plateau central */
     .center-board { display: flex; justify-content: space-around; align-items: center; margin: 15px 0; }
     .center-pile { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-
-    /* Mes colonnes */
     .my-columns { display: flex; justify-content: space-around; width: 100%; }
     .column-wrapper { display: flex; flex-direction: column; align-items: center; gap: 5px; }
     .stack-count { font-size: 0.8rem; color: #bdc3c7; }
-
-    /* Fin de manche */
     #slap-btn {
       background: #c0392b; color: white; font-size: 1.5rem; font-weight: bold;
       padding: 15px; border-radius: 10px; width: 100%; margin-top: 10px; display: none;
@@ -62,64 +48,49 @@
 
   <h1>Crapette Rapide</h1>
 
-  <!-- Ecran de connexion -->
   <div id="setup-screen">
     <h3>Rejoindre une partie</h3>
-    <p>Votre ID : <b id="my-id">Génération...</b></p>
+    <p>Votre ID : <b id="my-id">Connexion au serveur...</b></p>
     <hr>
-    <input type="text" id="peer-id-input" placeholder="Saisir l'ID de l'autre joueur">
+    <input type="text" id="peer-id-input" placeholder="Coller l'ID de l'autre joueur">
     <button onclick="connectToPeer()">Se connecter</button>
   </div>
 
-  <!-- Ecran de jeu -->
   <div id="game-screen">
-    <div class="status-bar" id="status">En attente du second joueur...</div>
-
-    <!-- Centre du jeu (Les 2 piles + Pots de secours) -->
+    <div class="status-bar" id="status">En attente...</div>
     <div class="center-board">
       <div class="center-pile">
         <span class="stack-count">Pile 1</span>
         <div id="center-0" class="card empty" onclick="playToCenter(0)"></div>
       </div>
-      
       <button id="draw-btn" onclick="triggerReadyDraw()" disabled>Prêt à piocher</button>
-
       <div class="center-pile">
         <span class="stack-count">Pile 2</span>
         <div id="center-1" class="card empty" onclick="playToCenter(1)"></div>
       </div>
     </div>
-
-    <!-- Bouton pour taper sur la pile en fin de manche -->
     <button id="slap-btn" onclick="slapCrapette()">CRAPETTE !</button>
-
-    <!-- Mes 5 colonnes de cartes -->
-    <div class="my-columns" id="my-columns">
-      <!-- Généré par JS -->
-    </div>
+    <div class="my-columns" id="my-columns"></div>
   </div>
 
 <script>
   let peer, conn;
   let isHost = false;
-  let myId = '';
-  
-  // Etat du jeu
-  let myPot = [];
-  let myCols = [[], [], [], [], []]; // 5 colonnes
-  let centerPiles = [[], []];
-  let selectedCardCol = null;
-  let readyToDraw = false;
-  let opponentReadyToDraw = false;
+  let myPot = [], myCols = [[], [], [], [], []], centerPiles = [[], []];
+  let selectedCardCol = null, readyToDraw = false, opponentReadyToDraw = false;
 
   const suits = ['♠', '♥', '♦', '♣'];
   const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
-  // Initialisation de PeerJS (WebRTC)
+  // Initialisation avec gestion des erreurs
   peer = new Peer();
+
   peer.on('open', (id) => {
-    myId = id;
     document.getElementById('my-id').innerText = id;
+  });
+
+  peer.on('error', (err) => {
+    alert("Erreur réseau PeerJS : " + err.type);
   });
 
   peer.on('connection', (connection) => {
@@ -129,8 +100,10 @@
   });
 
   function connectToPeer() {
-    const targetId = document.getElementById('peer-id-input').value;
+    const targetId = document.getElementById('peer-id-input').value.trim();
     if(!targetId) return alert('Veuillez entrer un ID valide');
+    
+    document.getElementById('status').innerText = "Connexion en cours...";
     conn = peer.connect(targetId);
     isHost = false;
     setupConnection();
@@ -142,19 +115,16 @@
       document.getElementById('game-screen').style.display = 'flex';
       
       if (isHost) {
-        document.getElementById('status').innerText = "Vous êtes l'hôte. Initialisation du paquet...";
+        document.getElementById('status').innerText = "Connecté ! Distribution des cartes...";
         initGame();
       } else {
         document.getElementById('status').innerText = "Connecté ! En attente du début...";
       }
     });
 
-    conn.on('data', (data) => {
-      handleIncomingData(data);
-    });
+    conn.on('data', (data) => { handleIncomingData(data); });
+    conn.on('error', (err) => { alert("Erreur de liaison : " + err); });
   }
-
-  // --- LOGIQUE DU JEU DE CARTES ---
 
   function createDeck() {
     let deck = [];
@@ -163,41 +133,34 @@
         deck.push({ value: v + 1, label: values[v], suit: s, isRed: (s === '♥' || s === '♦') });
       }
     }
-    return deck.sort(() => Math.random() - 0.5); // Mélanger
+    return deck.sort(() => Math.random() - 0.5);
   }
 
   function initGame() {
     let deck = createDeck();
-    
-    // Distribution : 26 cartes chacun
     let p1Cards = deck.slice(0, 26);
     let p2Cards = deck.slice(26, 52);
 
     setupPlayerState(p1Cards);
-    
-    // Envoyer les cartes à l'adversaire
     conn.send({ type: 'START_GAME', cards: p2Cards });
     updateUI();
   }
 
   function setupPlayerState(cards) {
     myCols = [[], [], [], [], []];
-    // Créer les 5 colonnes (1 à 5 cartes)
     for (let i = 0; i < 5; i++) {
       for (let j = 0; j <= i; j++) {
         let card = cards.pop();
-        card.faceUp = (j === i); // Seule la dernière est face visible
+        card.faceUp = (j === i);
         myCols[i].push(card);
       }
     }
-    myPot = cards; // Le reste forme le pot
+    myPot = cards;
   }
 
   function renderBoard() {
-    // Colonnes du joueur
     const colsDiv = document.getElementById('my-columns');
     colsDiv.innerHTML = '';
-    
     let hasVisibleCards = false;
 
     myCols.forEach((col, colIdx) => {
@@ -223,11 +186,9 @@
       countEl.className = 'stack-count';
       countEl.innerText = `${col.length} c.`;
       colWrapper.appendChild(countEl);
-
       colsDiv.appendChild(colWrapper);
     });
 
-    // Afficher les piles du centre
     for(let i = 0; i < 2; i++) {
       const centerEl = document.getElementById(`center-${i}`);
       const pile = centerPiles[i];
@@ -241,38 +202,25 @@
       }
     }
 
-    // Affichage du bouton Crapette si colonnes vides
-    if (!hasVisibleCards) {
-      document.getElementById('slap-btn').style.display = 'block';
-    } else {
-      document.getElementById('slap-btn').style.display = 'none';
-    }
+    document.getElementById('slap-btn').style.display = !hasVisibleCards ? 'block' : 'none';
   }
 
   function selectCard(colIdx) {
     const col = myCols[colIdx];
     if (col.length === 0) return;
-    
     const topCard = col[col.length - 1];
     if (!topCard.faceUp) {
-      topCard.faceUp = true; // Retourner la carte si elle est cachée
+      topCard.faceUp = true;
       renderBoard();
       return;
     }
-
-    if (selectedCardCol === colIdx) {
-      selectedCardCol = null; // Désélectionner
-    } else {
-      selectedCardCol = colIdx;
-    }
+    selectedCardCol = (selectedCardCol === colIdx) ? null : colIdx;
     renderBoard();
   }
 
   function moveEmptyColumn(targetColIdx) {
-    // Déplacer une carte visible vers une colonne vide
     if (selectedCardCol !== null && myCols[targetColIdx].length === 0) {
-      const card = myCols[selectedCardCol].pop();
-      myCols[targetColIdx].push(card);
+      myCols[targetColIdx].push(myCols[selectedCardCol].pop());
       selectedCardCol = null;
       renderBoard();
     }
@@ -280,80 +228,54 @@
 
   function playToCenter(centerIdx) {
     if (selectedCardCol === null) return;
-    
     const col = myCols[selectedCardCol];
     const card = col[col.length - 1];
     const centerCard = centerPiles[centerIdx][centerPiles[centerIdx].length - 1];
 
-    if (isValidMove(card, centerCard)) {
-      col.pop(); // Retirer la carte jouée
-      
-      // Auto-retourner la carte suivante si présente
+    if (!centerCard || Math.abs(card.value - centerCard.value) === 1 || (card.value === 1 && centerCard.value === 13) || (card.value === 13 && centerCard.value === 1)) {
+      col.pop();
       if (col.length > 0) col[col.length - 1].faceUp = true;
-
       centerPiles[centerIdx].push(card);
       selectedCardCol = null;
-
-      // Envoyer le coup au second joueur
       conn.send({ type: 'MOVE', centerIdx: centerIdx, card: card });
-      
       renderBoard();
     }
   }
 
-  function isValidMove(card, centerCard) {
-    if (!centerCard) return true;
-    let v1 = card.value;
-    let v2 = centerCard.value;
-
-    // Règle : +1, -1 ou boucle As/Roi (13 et 1)
-    if (Math.abs(v1 - v2) === 1) return true;
-    if ((v1 === 1 && v2 === 13) || (v1 === 13 && v2 === 1)) return true;
-    return false;
-  }
-
-  // --- PIOCHER EN MÊME TEMPS SI BLOQUÉS ---
-
   function triggerReadyDraw() {
     if (myPot.length === 0) return;
     readyToDraw = true;
-    document.getElementById('status').innerText = "En attente de l'adversaire pour piocher...";
+    document.getElementById('status').innerText = "En attente de l'adversaire...";
     conn.send({ type: 'READY_DRAW' });
     checkBothReadyDraw();
   }
 
   function checkBothReadyDraw() {
     if (readyToDraw && opponentReadyToDraw) {
-      drawCenterCards();
+      let myCard = myPot.pop();
+      if (myCard) {
+        myCard.faceUp = true;
+        centerPiles[0].push(myCard);
+        conn.send({ type: 'DRAW_CARD', centerIdx: 1, card: myCard });
+      }
       readyToDraw = false;
       opponentReadyToDraw = false;
       document.getElementById('draw-btn').disabled = false;
       document.getElementById('status').innerText = "Partie en cours !";
+      renderBoard();
     }
-  }
-
-  function drawCenterCards() {
-    let myCard = myPot.pop();
-    if (myCard) {
-      myCard.faceUp = true;
-      centerPiles[0].push(myCard);
-      conn.send({ type: 'DRAW_CARD', centerIdx: 1, card: myCard });
-    }
-    renderBoard();
   }
 
   function slapCrapette() {
     conn.send({ type: 'SLAP' });
-    alert("CRAPETTE ! Vous avez été le plus rapide !");
+    alert("CRAPETTE ! Vous avez tapé le premier !");
   }
-
-  // --- RÉCEPTION DES MESSAGES RÉSEAU ---
 
   function handleIncomingData(data) {
     if (data.type === 'START_GAME') {
       setupPlayerState(data.cards);
       document.getElementById('draw-btn').disabled = false;
-      document.getElementById('status').innerText = "Partie lancée ! Appuyez sur 'Prêt à piocher'.";
+      document.getElementById('status').innerText = "Partie lancée !";
       renderBoard();
     } 
     else if (data.type === 'MOVE') {
@@ -370,7 +292,7 @@
       renderBoard();
     }
     else if (data.type === 'SLAP') {
-      alert("L'adversaire a terminé ses colonnes et à tapé Crapette !");
+      alert("L'adversaire a crié Crapette !");
     }
   }
 
