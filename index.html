@@ -1,305 +1,654 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Crapette Rapide Multi</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <style>
-    * { box-sizing: border-box; touch-action: manipulation; user-select: none; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #1b4d3e; color: white; margin: 0; padding: 10px;
-      display: flex; flex-direction: column; align-items: center; height: 100vh;
-    }
-    h1 { margin: 5px 0; font-size: 1.2rem; }
-    #setup-screen {
-      background: rgba(0,0,0,0.4); padding: 15px; border-radius: 10px;
-      text-align: center; width: 100%; max-width: 350px; margin-top: 20px;
-    }
-    input { width: 80%; padding: 10px; margin: 8px 0; font-size: 1rem; border-radius: 5px; border: none; text-align: center; }
-    button {
-      background: #e67e22; color: white; border: none; padding: 10px 20px;
-      font-size: 1rem; font-weight: bold; border-radius: 5px; cursor: pointer; margin: 5px;
-    }
-    #game-screen { display: none; width: 100%; max-width: 400px; height: 100%; flex-direction: column; justify-content: space-between; }
-    .status-bar { text-align: center; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 5px; font-size: 0.9rem; }
-    .card {
-      width: 55px; height: 80px; border-radius: 6px; background: white; color: black;
-      display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2rem;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.5); border: 2px solid #ccc; position: relative;
-    }
-    .card.red { color: #e74c3c; }
-    .card.back { background: #2980b9; color: white; border-color: white; }
-    .card.selected { border: 3px solid #f1c40f; transform: scale(1.05); }
-    .card.empty { background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); }
-    .center-board { display: flex; justify-content: space-around; align-items: center; margin: 15px 0; }
-    .center-pile { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-    .my-columns { display: flex; justify-content: space-around; width: 100%; }
-    .column-wrapper { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-    .stack-count { font-size: 0.8rem; color: #bdc3c7; }
-    #slap-btn {
-      background: #c0392b; color: white; font-size: 1.5rem; font-weight: bold;
-      padding: 15px; border-radius: 10px; width: 100%; margin-top: 10px; display: none;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Crapette CARL</title>
+<meta name="description" content="Crapette rapide (Speed/Spit) à 2 joueurs — appli CARL">
+<meta name="theme-color" content="#12182d">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Crapette CARL">
+<style>
+  :root{
+    --bg:#12182d;
+    --panel:#1a2140;
+    --panel2:#222b52;
+    --orange:#f0a320;
+    --white:#f5f6fa;
+    --red:#e0483f;
+    --green:#3fae6a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--white);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh;
+    padding:8px;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  h1{
+    text-align:center;
+    margin:4px 0 2px;
+    font-size:1.3rem;
+    letter-spacing:2px;
+    color:var(--white);
+  }
+  h1 span{color:var(--orange);}
+  .subtitle{
+    text-align:center;
+    font-size:0.7rem;
+    color:#8791b5;
+    margin-bottom:8px;
+  }
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:var(--panel);
+    border-radius:10px;
+    padding:8px 12px;
+    margin-bottom:8px;
+    font-size:0.78rem;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .topbar b{color:var(--orange);}
+  button{
+    background:var(--orange);
+    color:#1a1a1a;
+    border:none;
+    border-radius:8px;
+    padding:7px 14px;
+    font-weight:bold;
+    font-size:0.8rem;
+    cursor:pointer;
+  }
+  button.secondary{
+    background:transparent;
+    border:1px solid var(--orange);
+    color:var(--orange);
+  }
+  button.big{
+    font-size:1rem;
+    padding:12px 24px;
+  }
+  .center-actions{
+    text-align:center;
+    margin:6px 0;
+    min-height:40px;
+  }
+  .player-panel{
+    background:var(--panel);
+    border-radius:14px;
+    padding:10px;
+    margin-bottom:8px;
+  }
+  .player-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:0.78rem;
+    margin-bottom:6px;
+    color:#b9c0dd;
+  }
+  .zone-row{
+    display:flex;
+    gap:6px;
+    align-items:flex-start;
+    justify-content:center;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding-bottom:4px;
+  }
+  .zone{
+    text-align:center;
+    font-size:0.55rem;
+    color:#8791b5;
+    flex:0 0 auto;
+  }
+  .stack{
+    position:relative;
+    width:40px;
+    height:90px;
+  }
+  .card{
+    width:40px;
+    height:56px;
+    border-radius:6px;
+    background:var(--white);
+    color:#222;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    font-size:0.78rem;
+    position:absolute;
+    left:0;
+    box-shadow:0 2px 4px rgba(0,0,0,.4);
+    border:1px solid #ccc;
+    cursor:pointer;
+  }
+  .card.red{color:var(--red);}
+  .card.black{color:#1a1a1a;}
+  .card .suit{font-size:0.85rem;}
+  .card-back{
+    background:repeating-linear-gradient(45deg,var(--panel2),var(--panel2) 4px,#2c3768 4px,#2c3768 8px);
+    border:1px solid var(--orange);
+  }
+  .empty-slot{
+    width:40px;height:56px;
+    border:2px dashed #3a4470;
+    border-radius:6px;
+    position:absolute;
+    left:0;top:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:0.9rem;
+    color:#3a4470;
+    cursor:pointer;
+  }
+  .selected{
+    outline:3px solid var(--orange);
+    outline-offset:2px;
+    z-index:10;
+  }
+  .valid-target{
+    outline:3px dashed var(--green);
+    outline-offset:2px;
+  }
+  .count-badge{
+    position:absolute;
+    bottom:-2px;right:-4px;
+    background:var(--orange);
+    color:#1a1a1a;
+    font-size:0.5rem;
+    border-radius:8px;
+    padding:1px 4px;
+    font-weight:bold;
+    z-index:20;
+  }
+  .center-wrap{
+    display:flex;
+    justify-content:center;
+    gap:18px;
+    background:var(--panel);
+    border-radius:14px;
+    padding:16px 10px;
+    margin:6px 0;
+    min-height:100px;
+    align-items:center;
+  }
+  .center-pile-box{
+    text-align:center;
+  }
+  .center-pile-box .stack{
+    width:52px;height:72px;
+  }
+  .center-pile-box .card{
+    width:52px;height:72px;
+    font-size:1rem;
+  }
+  .center-pile-box .empty-slot{
+    width:52px;height:72px;
+  }
+  .center-label{
+    font-size:0.6rem;
+    color:#8791b5;
+    margin-top:4px;
+  }
+  .msg{
+    text-align:center;
+    font-size:0.8rem;
+    color:var(--orange);
+    min-height:18px;
+    margin-bottom:4px;
+    font-weight:bold;
+  }
+  details{
+    background:var(--panel);
+    border-radius:10px;
+    padding:8px 12px;
+    margin-top:10px;
+    font-size:0.75rem;
+    color:#c7cce0;
+  }
+  summary{cursor:pointer;color:var(--orange);font-weight:bold;}
+  .modal-overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.75);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{
+    background:var(--panel);
+    border:2px solid var(--orange);
+    border-radius:14px;
+    padding:24px;
+    text-align:center;
+    max-width:320px;
+  }
+  .modal h2{color:var(--orange);margin-top:0;}
+  .modal button{margin:6px;}
+  .countdown{
+    font-size:3rem;
+    font-weight:bold;
+    color:var(--orange);
+    text-align:center;
+  }
+</style>
 </head>
 <body>
 
-  <h1>Crapette Rapide</h1>
+<h1>CRAPETTE <span>CARL</span></h1>
+<div class="subtitle">Version rapide — façon Speed / Spit</div>
 
-  <div id="setup-screen">
-    <h3>Rejoindre une partie</h3>
-    <p>Votre ID : <b id="my-id">Connexion au serveur...</b></p>
-    <hr>
-    <input type="text" id="peer-id-input" placeholder="Coller l'ID de l'autre joueur">
-    <button onclick="connectToPeer()">Se connecter</button>
-  </div>
+<div class="topbar">
+  <div>J1 restant: <b id="totalP1">26</b> cartes</div>
+  <div id="statusIndicator">Prêt</div>
+  <div>J2 restant: <b id="totalP2">26</b> cartes</div>
+</div>
 
-  <div id="game-screen">
-    <div class="status-bar" id="status">En attente...</div>
-    <div class="center-board">
-      <div class="center-pile">
-        <span class="stack-count">Pile 1</span>
-        <div id="center-0" class="card empty" onclick="playToCenter(0)"></div>
-      </div>
-      <button id="draw-btn" onclick="triggerReadyDraw()" disabled>Prêt à piocher</button>
-      <div class="center-pile">
-        <span class="stack-count">Pile 2</span>
-        <div id="center-1" class="card empty" onclick="playToCenter(1)"></div>
-      </div>
-    </div>
-    <button id="slap-btn" onclick="slapCrapette()">CRAPETTE !</button>
-    <div class="my-columns" id="my-columns"></div>
+<div class="msg" id="msg"></div>
+
+<!-- Joueur 2 (haut) -->
+<div class="player-panel">
+  <div class="player-header"><span>👤 Joueur 2</span><span>Pot: <b id="pot-p2">11</b></span></div>
+  <div class="zone-row" id="cols-p2"></div>
+</div>
+
+<!-- Centre -->
+<div class="center-wrap" id="centerWrap"></div>
+<div class="center-actions" id="centerActions"></div>
+
+<!-- Joueur 1 (bas) -->
+<div class="player-panel">
+  <div class="player-header"><span>👤 Joueur 1</span><span>Pot: <b id="pot-p1">11</b></span></div>
+  <div class="zone-row" id="cols-p1"></div>
+</div>
+
+<details>
+  <summary>Règles & simplifications de cette version</summary>
+  <p><b>But :</b> vider ses 5 colonnes alors qu'on n'a plus aucune carte dans son pot → victoire finale immédiate.</p>
+  <p><b>Comment jouer :</b> touche une carte visible d'une de tes colonnes puis touche une pile centrale si sa valeur est +1 ou -1 (l'As boucle avec le Roi). Les couleurs ne comptent pas. Pas de tour par tour : les deux joueurs peuvent jouer à tout moment, dans n'importe quel ordre.</p>
+  <p><b>Colonne vide :</b> tu peux y déposer la carte visible d'une autre de tes colonnes pour libérer ce qui est caché dessous.</p>
+  <p><b>Blocage :</b> si plus aucun coup n'est possible, le bouton "Débloquer" apparaît : chacun pioche une carte de son pot vers sa pile.</p>
+  <p><b>Fin de manche :</b> dès que les 5 colonnes d'un joueur sont vides, la manche s'arrête. Ce joueur récupère automatiquement la pile centrale la plus petite (l'autre récupère la plus grosse), puis chacun mélange ses cartes restantes + sa pile récupérée pour reformer ses 5 colonnes.</p>
+  <p><b>Simplifications :</b> sur un même écran, une seule carte peut être "sélectionnée" à la fois (pas de tape simultanée multi-doigts) — l'attribution de la pile la plus petite au joueur qui termine est donc automatique plutôt qu'une course à la tape. Le reste (boucle As/Roi, colonnes tronquées en fin de partie, victoire à pot vide) suit la règle exacte que tu as donnée.</p>
+</details>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle"></h2>
+    <p id="modalText"></p>
+    <div id="modalCountdown" class="countdown" style="display:none;"></div>
+    <button id="modalBtn" class="big" onclick="modalAction()">Continuer</button>
   </div>
+</div>
 
 <script>
-  let peer, conn;
-  let isHost = false;
-  let myPot = [], myCols = [[], [], [], [], []], centerPiles = [[], []];
-  let selectedCardCol = null, readyToDraw = false, opponentReadyToDraw = false;
+const SUITS = ['♠','♥','♦','♣'];
+const SUIT_COLOR = {'♠':'black','♣':'black','♥':'red','♦':'red'};
 
-  const suits = ['♠', '♥', '♦', '♣'];
-  const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+function rankLabel(r){
+  if(r===1) return 'A';
+  if(r===11) return 'J';
+  if(r===12) return 'Q';
+  if(r===13) return 'K';
+  return r.toString();
+}
 
-  // Initialisation avec gestion des erreurs
-  peer = new Peer();
-
-  peer.on('open', (id) => {
-    document.getElementById('my-id').innerText = id;
-  });
-
-  peer.on('error', (err) => {
-    alert("Erreur réseau PeerJS : " + err.type);
-  });
-
-  peer.on('connection', (connection) => {
-    conn = connection;
-    isHost = true;
-    setupConnection();
-  });
-
-  function connectToPeer() {
-    const targetId = document.getElementById('peer-id-input').value.trim();
-    if(!targetId) return alert('Veuillez entrer un ID valide');
-    
-    document.getElementById('status').innerText = "Connexion en cours...";
-    conn = peer.connect(targetId);
-    isHost = false;
-    setupConnection();
+function shuffle(arr){
+  const d = arr.slice();
+  for(let i=d.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [d[i],d[j]]=[d[j],d[i]];
   }
+  return d;
+}
 
-  function setupConnection() {
-    conn.on('open', () => {
-      document.getElementById('setup-screen').style.display = 'none';
-      document.getElementById('game-screen').style.display = 'flex';
-      
-      if (isHost) {
-        document.getElementById('status').innerText = "Connecté ! Distribution des cartes...";
-        initGame();
-      } else {
-        document.getElementById('status').innerText = "Connecté ! En attente du début...";
-      }
-    });
+function freshShuffledDeck(){
+  const d=[];
+  for(const s of SUITS) for(let r=1;r<=13;r++) d.push({suit:s, rank:r});
+  return shuffle(d);
+}
 
-    conn.on('data', (data) => { handleIncomingData(data); });
-    conn.on('error', (err) => { alert("Erreur de liaison : " + err); });
+function buildReserve(deck){
+  const columns=[];
+  let idx=0;
+  for(let size=1; size<=5; size++){
+    const remaining = deck.length-idx;
+    if(remaining<=0){ columns.push([]); continue; }
+    const take = Math.min(size, remaining);
+    columns.push(deck.slice(idx, idx+take));
+    idx += take;
   }
+  const pot = deck.slice(idx);
+  return {columns, pot};
+}
 
-  function createDeck() {
-    let deck = [];
-    for (let s of suits) {
-      for (let v = 0; v < values.length; v++) {
-        deck.push({ value: v + 1, label: values[v], suit: s, isRed: (s === '♥' || s === '♦') });
+function flattenColumns(cols){
+  return cols.reduce((a,c)=>a.concat(c), []);
+}
+
+function cardAdjacent(r1, r2){
+  const diff = Math.abs(r1-r2);
+  return diff===1 || diff===12;
+}
+
+function other(owner){ return owner==='p1' ? 'p2' : 'p1'; }
+
+let state = null;
+let matchOver = false;
+
+function initMatch(){
+  matchOver = false;
+  const deck = freshShuffledDeck();
+  const r1 = buildReserve(deck.slice(0,26));
+  const r2 = buildReserve(deck.slice(26,52));
+  state = {
+    p1: { columns:r1.columns, pot:r1.pot },
+    p2: { columns:r2.columns, pot:r2.pot },
+    center: [],
+    selected: null,
+    roundActive: false,
+    blocked: false
+  };
+  setMsg('Nouvelle partie ! Appuie sur "Démarrer la manche".');
+  render();
+}
+
+function totalCards(owner){
+  return state[owner].pot.length + flattenColumns(state[owner].columns).length;
+}
+
+function setMsg(t){ document.getElementById('msg').textContent = t || ''; }
+
+function startRoundCountdown(){
+  const overlay = document.getElementById('modalOverlay');
+  overlay.classList.add('show');
+  document.getElementById('modalTitle').textContent = 'Préparez-vous !';
+  document.getElementById('modalText').textContent = '';
+  document.getElementById('modalBtn').style.display='none';
+  const cd = document.getElementById('modalCountdown');
+  cd.style.display='block';
+  const seq = ['3','2','1','CRAPETTE !'];
+  let i=0;
+  cd.textContent = seq[i];
+  const timer = setInterval(()=>{
+    i++;
+    if(i<seq.length){
+      cd.textContent = seq[i];
+    } else {
+      clearInterval(timer);
+      cd.style.display='none';
+      document.getElementById('modalBtn').style.display='inline-block';
+      overlay.classList.remove('show');
+      actuallyStartRound();
+    }
+  }, 550);
+}
+
+function actuallyStartRound(){
+  const piles=[];
+  if(state.p1.pot.length>0) piles.push({owner:'p1', cards:[state.p1.pot.pop()]});
+  if(state.p2.pot.length>0) piles.push({owner:'p2', cards:[state.p2.pot.pop()]});
+  state.center = piles;
+  state.roundActive = true;
+  state.selected = null;
+  checkBlocked();
+  setMsg('À vous de jouer !');
+  render();
+}
+
+function handleColumnClick(owner, colIdx){
+  if(!state.roundActive) return;
+  const col = state[owner].columns[colIdx];
+
+  if(state.selected){
+    const sel = state.selected;
+    // move to empty column of the SAME owner as the selected card
+    if(col.length===0 && sel.owner===owner && sel.colIdx!==colIdx){
+      const srcCol = state[sel.owner].columns[sel.colIdx];
+      if(srcCol.length>0){
+        const card = srcCol.pop();
+        col.push(card);
+        clearSelection();
+        afterMove(owner);
+        return;
       }
     }
-    return deck.sort(() => Math.random() - 0.5);
   }
 
-  function initGame() {
-    let deck = createDeck();
-    let p1Cards = deck.slice(0, 26);
-    let p2Cards = deck.slice(26, 52);
-
-    setupPlayerState(p1Cards);
-    conn.send({ type: 'START_GAME', cards: p2Cards });
-    updateUI();
+  if(col.length===0){ clearSelection(); render(); return; }
+  if(state.selected && state.selected.owner===owner && state.selected.colIdx===colIdx){
+    clearSelection();
+    render();
+    return;
   }
+  state.selected = {owner, colIdx};
+  render();
+}
 
-  function setupPlayerState(cards) {
-    myCols = [[], [], [], [], []];
-    for (let i = 0; i < 5; i++) {
-      for (let j = 0; j <= i; j++) {
-        let card = cards.pop();
-        card.faceUp = (j === i);
-        myCols[i].push(card);
-      }
-    }
-    myPot = cards;
+function handleCenterClick(pileIdx){
+  if(!state.roundActive || !state.selected) return;
+  const sel = state.selected;
+  const srcCol = state[sel.owner].columns[sel.colIdx];
+  if(!srcCol || srcCol.length===0){ clearSelection(); render(); return; }
+  const card = srcCol[srcCol.length-1];
+  const pile = state.center[pileIdx];
+  if(!pile || pile.cards.length===0) return;
+  const top = pile.cards[pile.cards.length-1];
+  if(cardAdjacent(card.rank, top.rank)){
+    srcCol.pop();
+    pile.cards.push(card);
+    const owner = sel.owner;
+    clearSelection();
+    afterMove(owner);
+  } else {
+    setMsg("Coup invalide : ce n'est pas +1 ou -1.");
   }
+}
 
-  function renderBoard() {
-    const colsDiv = document.getElementById('my-columns');
-    colsDiv.innerHTML = '';
-    let hasVisibleCards = false;
+function clearSelection(){ state.selected = null; }
 
-    myCols.forEach((col, colIdx) => {
-      const colWrapper = document.createElement('div');
-      colWrapper.className = 'column-wrapper';
-      
-      if (col.length > 0) {
-        hasVisibleCards = true;
-        const topCard = col[col.length - 1];
-        const cardEl = document.createElement('div');
-        cardEl.className = `card ${topCard.faceUp ? (topCard.isRed ? 'red' : '') : 'back'} ${selectedCardCol === colIdx ? 'selected' : ''}`;
-        cardEl.innerText = topCard.faceUp ? `${topCard.label}${topCard.suit}` : '';
-        cardEl.onclick = () => selectCard(colIdx);
-        colWrapper.appendChild(cardEl);
-      } else {
-        const emptyEl = document.createElement('div');
-        emptyEl.className = 'card empty';
-        emptyEl.onclick = () => moveEmptyColumn(colIdx);
-        colWrapper.appendChild(emptyEl);
-      }
-
-      const countEl = document.createElement('span');
-      countEl.className = 'stack-count';
-      countEl.innerText = `${col.length} c.`;
-      colWrapper.appendChild(countEl);
-      colsDiv.appendChild(colWrapper);
-    });
-
-    for(let i = 0; i < 2; i++) {
-      const centerEl = document.getElementById(`center-${i}`);
-      const pile = centerPiles[i];
-      if (pile && pile.length > 0) {
-        const top = pile[pile.length - 1];
-        centerEl.className = `card ${top.isRed ? 'red' : ''}`;
-        centerEl.innerText = `${top.label}${top.suit}`;
-      } else {
-        centerEl.className = 'card empty';
-        centerEl.innerText = '';
-      }
-    }
-
-    document.getElementById('slap-btn').style.display = !hasVisibleCards ? 'block' : 'none';
-  }
-
-  function selectCard(colIdx) {
-    const col = myCols[colIdx];
-    if (col.length === 0) return;
-    const topCard = col[col.length - 1];
-    if (!topCard.faceUp) {
-      topCard.faceUp = true;
-      renderBoard();
+function afterMove(owner){
+  const p = state[owner];
+  const colsEmpty = p.columns.every(c=>c.length===0);
+  if(colsEmpty){
+    if(p.pot.length===0){
+      endMatch(owner);
+      return;
+    } else {
+      endRound(owner);
       return;
     }
-    selectedCardCol = (selectedCardCol === colIdx) ? null : colIdx;
-    renderBoard();
   }
+  checkBlocked();
+  render();
+}
 
-  function moveEmptyColumn(targetColIdx) {
-    if (selectedCardCol !== null && myCols[targetColIdx].length === 0) {
-      myCols[targetColIdx].push(myCols[selectedCardCol].pop());
-      selectedCardCol = null;
-      renderBoard();
+function checkBlocked(){
+  const tops=[];
+  for(const owner of ['p1','p2']){
+    for(const col of state[owner].columns){ if(col.length>0) tops.push(col[col.length-1]); }
+  }
+  let found=false;
+  for(const t of tops){
+    for(const pile of state.center){
+      if(pile.cards.length>0 && cardAdjacent(t.rank, pile.cards[pile.cards.length-1].rank)){ found=true; break; }
+    }
+    if(found) break;
+  }
+  state.blocked = !found;
+  if(state.blocked) setMsg('Blocage ! Personne ne peut jouer. Touchez "Débloquer".');
+}
+
+function unblock(){
+  let any=false;
+  for(const pile of state.center){
+    if(state[pile.owner].pot.length>0){
+      pile.cards.push(state[pile.owner].pot.pop());
+      any=true;
     }
   }
+  clearSelection();
+  checkBlocked();
+  if(any) setMsg('Nouvelles cartes au centre !');
+  render();
+}
 
-  function playToCenter(centerIdx) {
-    if (selectedCardCol === null) return;
-    const col = myCols[selectedCardCol];
-    const card = col[col.length - 1];
-    const centerCard = centerPiles[centerIdx][centerPiles[centerIdx].length - 1];
-
-    if (!centerCard || Math.abs(card.value - centerCard.value) === 1 || (card.value === 1 && centerCard.value === 13) || (card.value === 13 && centerCard.value === 1)) {
-      col.pop();
-      if (col.length > 0) col[col.length - 1].faceUp = true;
-      centerPiles[centerIdx].push(card);
-      selectedCardCol = null;
-      conn.send({ type: 'MOVE', centerIdx: centerIdx, card: card });
-      renderBoard();
-    }
+function endRound(finisher){
+  const opponent = other(finisher);
+  let finisherGain=[], opponentGain=[];
+  if(state.center.length===2){
+    const [pA,pB] = state.center;
+    if(pA.cards.length <= pB.cards.length){ finisherGain=pA.cards; opponentGain=pB.cards; }
+    else { finisherGain=pB.cards; opponentGain=pA.cards; }
+  } else if(state.center.length===1){
+    finisherGain = state.center[0].cards;
   }
 
-  function triggerReadyDraw() {
-    if (myPot.length === 0) return;
-    readyToDraw = true;
-    document.getElementById('status').innerText = "En attente de l'adversaire...";
-    conn.send({ type: 'READY_DRAW' });
-    checkBothReadyDraw();
-  }
+  const newFinisherDeck = shuffle([...state[finisher].pot, ...flattenColumns(state[finisher].columns), ...finisherGain]);
+  const newOpponentDeck = shuffle([...state[opponent].pot, ...flattenColumns(state[opponent].columns), ...opponentGain]);
 
-  function checkBothReadyDraw() {
-    if (readyToDraw && opponentReadyToDraw) {
-      let myCard = myPot.pop();
-      if (myCard) {
-        myCard.faceUp = true;
-        centerPiles[0].push(myCard);
-        conn.send({ type: 'DRAW_CARD', centerIdx: 1, card: myCard });
+  const rf = buildReserve(newFinisherDeck);
+  const ro = buildReserve(newOpponentDeck);
+  state[finisher].columns = rf.columns; state[finisher].pot = rf.pot;
+  state[opponent].columns = ro.columns; state[opponent].pot = ro.pot;
+  state.center = [];
+  state.roundActive = false;
+  state.selected = null;
+
+  const fName = finisher==='p1'?'Joueur 1':'Joueur 2';
+  document.getElementById('modalTitle').textContent = `${fName} finit ses colonnes en premier !`;
+  document.getElementById('modalText').textContent = `${fName} récupère ${finisherGain.length} carte(s), l'adversaire récupère ${opponentGain.length} carte(s). Nouvelle réserve mélangée pour la manche suivante.`;
+  document.getElementById('modalBtn').textContent = 'Manche suivante';
+  document.getElementById('modalBtn').onclick = ()=>{ document.getElementById('modalOverlay').classList.remove('show'); startRoundCountdown(); };
+  document.getElementById('modalOverlay').classList.add('show');
+  render();
+}
+
+function endMatch(winner){
+  matchOver = true;
+  state.roundActive = false;
+  const wName = winner==='p1'?'Joueur 1':'Joueur 2';
+  document.getElementById('modalTitle').textContent = `🏆 ${wName} remporte la partie !`;
+  document.getElementById('modalText').textContent = `Pot totalement vide + colonnes vidées : victoire finale.`;
+  document.getElementById('modalBtn').textContent = 'Nouvelle partie';
+  document.getElementById('modalBtn').onclick = ()=>{ document.getElementById('modalOverlay').classList.remove('show'); initMatch(); };
+  document.getElementById('modalOverlay').classList.add('show');
+  render();
+}
+
+function modalAction(){}
+
+function cardHtml(card, extraClasses, onclickAttr){
+  const color = SUIT_COLOR[card.suit];
+  return `<div class="card ${color} ${extraClasses||''}" ${onclickAttr||''}>
+    <div>${rankLabel(card.rank)}</div><div class="suit">${card.suit}</div>
+  </div>`;
+}
+
+function isColSelected(owner, colIdx){
+  return state.selected && state.selected.owner===owner && state.selected.colIdx===colIdx;
+}
+
+function isValidEmptyTarget(owner, colIdx){
+  if(!state.selected) return false;
+  const sel = state.selected;
+  if(sel.owner!==owner) return false;
+  if(sel.colIdx===colIdx) return false;
+  return state[owner].columns[colIdx].length===0;
+}
+
+function isValidCenterTarget(pileIdx){
+  if(!state.selected) return false;
+  const sel = state.selected;
+  const srcCol = state[sel.owner].columns[sel.colIdx];
+  if(!srcCol || srcCol.length===0) return false;
+  const card = srcCol[srcCol.length-1];
+  const pile = state.center[pileIdx];
+  if(!pile || pile.cards.length===0) return false;
+  const top = pile.cards[pile.cards.length-1];
+  return cardAdjacent(card.rank, top.rank);
+}
+
+function renderColumns(owner){
+  const container = document.getElementById(`cols-${owner}`);
+  let html='';
+  for(let i=0;i<5;i++){
+    const col = state[owner].columns[i];
+    html += `<div class="zone">C${i+1}<div class="stack">`;
+    if(col.length===0){
+      const validTgt = isValidEmptyTarget(owner, i);
+      html += `<div class="empty-slot ${validTgt?'valid-target':''}" onclick="handleColumnClick('${owner}',${i})"></div>`;
+    } else {
+      for(let k=0;k<col.length-1;k++){
+        html += `<div class="card card-back" style="top:${k*6}px;"></div>`;
       }
-      readyToDraw = false;
-      opponentReadyToDraw = false;
-      document.getElementById('draw-btn').disabled = false;
-      document.getElementById('status').innerText = "Partie en cours !";
-      renderBoard();
+      const top = col[col.length-1];
+      const sel = isColSelected(owner,i);
+      const cls = sel ? 'selected' : '';
+      html += `<div style="position:relative;top:${(col.length-1)*6}px;">${cardHtml(top, cls, `onclick="handleColumnClick('${owner}',${i})"`)}</div>`;
+      if(col.length>1) html += `<div class="count-badge">${col.length}</div>`;
     }
+    html += `</div></div>`;
+  }
+  container.innerHTML = html;
+}
+
+function render(){
+  document.getElementById('totalP1').textContent = totalCards('p1');
+  document.getElementById('totalP2').textContent = totalCards('p2');
+  document.getElementById('pot-p1').textContent = state.p1.pot.length;
+  document.getElementById('pot-p2').textContent = state.p2.pot.length;
+
+  renderColumns('p1');
+  renderColumns('p2');
+
+  const cw = document.getElementById('centerWrap');
+  if(!state.roundActive && state.center.length===0){
+    cw.innerHTML = `<div style="color:#8791b5;font-size:0.8rem;">La partie n'a pas encore commencé.</div>`;
+  } else {
+    cw.innerHTML = state.center.map((pile, idx)=>{
+      const top = pile.cards[pile.cards.length-1];
+      const validTgt = isValidCenterTarget(idx);
+      return `<div class="center-pile-box">
+        <div class="stack">${cardHtml(top, validTgt?'valid-target':'', `onclick="handleCenterClick(${idx})"`)}<div class="count-badge">${pile.cards.length}</div></div>
+        <div class="center-label">Pile ${pile.owner==='p1'?'J1':'J2'}</div>
+      </div>`;
+    }).join('');
   }
 
-  function slapCrapette() {
-    conn.send({ type: 'SLAP' });
-    alert("CRAPETTE ! Vous avez tapé le premier !");
+  const ca = document.getElementById('centerActions');
+  if(!state.roundActive && !matchOver){
+    ca.innerHTML = `<button class="big" onclick="startRoundCountdown()">▶ Démarrer la manche</button>`;
+  } else if(state.blocked){
+    ca.innerHTML = `<button onclick="unblock()">🔔 Débloquer (piocher)</button>`;
+  } else {
+    ca.innerHTML = '';
   }
 
-  function handleIncomingData(data) {
-    if (data.type === 'START_GAME') {
-      setupPlayerState(data.cards);
-      document.getElementById('draw-btn').disabled = false;
-      document.getElementById('status').innerText = "Partie lancée !";
-      renderBoard();
-    } 
-    else if (data.type === 'MOVE') {
-      centerPiles[data.centerIdx].push(data.card);
-      renderBoard();
-    }
-    else if (data.type === 'READY_DRAW') {
-      opponentReadyToDraw = true;
-      checkBothReadyDraw();
-    }
-    else if (data.type === 'DRAW_CARD') {
-      data.card.faceUp = true;
-      centerPiles[data.centerIdx].push(data.card);
-      renderBoard();
-    }
-    else if (data.type === 'SLAP') {
-      alert("L'adversaire a crié Crapette !");
-    }
-  }
+  document.getElementById('statusIndicator').innerHTML = matchOver ? '<b>Partie terminée</b>' : (state.roundActive ? 'En jeu !' : 'En attente');
+}
 
-  function updateUI() {
-    document.getElementById('draw-btn').disabled = false;
-    renderBoard();
-  }
+initMatch();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
