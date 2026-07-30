@@ -79,6 +79,10 @@
     font-size:1rem;
     padding:12px 24px;
   }
+  button:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
   .center-actions{
     text-align:center;
     margin:6px 0;
@@ -89,6 +93,9 @@
     border-radius:14px;
     padding:10px;
     margin-bottom:8px;
+  }
+  .player-panel.me{
+    border:2px solid var(--orange);
   }
   .player-header{
     display:flex;
@@ -227,6 +234,7 @@
     align-items:center;
     justify-content:center;
     z-index:50;
+    padding:16px;
   }
   .modal-overlay.show{display:flex;}
   .modal{
@@ -236,6 +244,7 @@
     padding:24px;
     text-align:center;
     max-width:320px;
+    width:100%;
   }
   .modal h2{color:var(--orange);margin-top:0;}
   .modal button{margin:6px;}
@@ -245,6 +254,58 @@
     color:var(--orange);
     text-align:center;
   }
+  #startMenu{
+    max-width:400px;
+    margin:40px auto;
+    text-align:center;
+  }
+  #startMenu .card-choice{
+    background:var(--panel);
+    border-radius:14px;
+    padding:20px;
+    margin-bottom:14px;
+  }
+  #startMenu .card-choice p{
+    font-size:0.78rem;
+    color:#b9c0dd;
+    margin:6px 0 12px;
+  }
+  #startMenu input{
+    background:var(--panel2);
+    border:1px solid var(--orange);
+    color:var(--white);
+    border-radius:8px;
+    padding:10px;
+    font-size:1.1rem;
+    text-align:center;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    width:140px;
+    margin-right:6px;
+  }
+  .roomcode-display{
+    font-size:2.2rem;
+    letter-spacing:6px;
+    font-weight:bold;
+    color:var(--orange);
+    margin:10px 0;
+  }
+  .warn{
+    font-size:0.68rem;
+    color:#8791b5;
+    margin-top:6px;
+  }
+  .spinner{
+    display:inline-block;
+    width:16px;height:16px;
+    border:2px solid var(--orange);
+    border-top-color:transparent;
+    border-radius:50%;
+    animation:spin 0.8s linear infinite;
+    vertical-align:middle;
+    margin-right:6px;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
 </style>
 </head>
 <body>
@@ -252,50 +313,117 @@
 <h1>CRAPETTE <span>CARL</span></h1>
 <div class="subtitle">Version rapide — façon Speed / Spit</div>
 
-<div class="topbar">
-  <div>J1 restant: <b id="totalP1">26</b> cartes</div>
-  <div id="statusIndicator">Prêt</div>
-  <div>J2 restant: <b id="totalP2">26</b> cartes</div>
+<!-- ==================== MENU DE DEMARRAGE ==================== -->
+<div id="startMenu">
+  <div class="card-choice">
+    <h3 style="margin-top:0;">📱 Sur le même téléphone</h3>
+    <p>Les deux joueurs jouent à tour de rôle rapide sur cet écran.</p>
+    <button class="big" onclick="startLocalMode()">Jouer en local</button>
+  </div>
+  <div class="card-choice">
+    <h3 style="margin-top:0;">🌐 Sur 2 téléphones</h3>
+    <p>Chacun sur son téléphone, synchronisé en temps réel.</p>
+    <div id="onlineButtons">
+      <button onclick="createRoom()">Créer une partie</button>
+      <br><br>
+      <input type="text" id="joinCodeInput" placeholder="CODE" maxlength="4">
+      <button onclick="joinRoom(document.getElementById('joinCodeInput').value)">Rejoindre</button>
+    </div>
+    <div id="firebaseWarning" class="warn" style="display:none;">
+      ⚠️ Le mode à distance n'est pas configuré. Renseigne ta configuration Firebase dans index.html (voir README.md).
+    </div>
+  </div>
+  <div id="lobbyStatus" style="font-size:0.85rem;color:var(--orange);min-height:20px;"></div>
 </div>
 
-<div class="msg" id="msg"></div>
+<!-- ==================== ECRAN DE JEU ==================== -->
+<div id="gameScreen" style="display:none;">
 
-<!-- Joueur 2 (haut) -->
-<div class="player-panel">
-  <div class="player-header"><span>👤 Joueur 2</span><span>Pot: <b id="pot-p2">11</b></span></div>
-  <div class="zone-row" id="cols-p2"></div>
+  <div class="topbar">
+    <div>J1 restant: <b id="totalP1">26</b> cartes</div>
+    <div id="statusIndicator">Prêt</div>
+    <div>J2 restant: <b id="totalP2">26</b> cartes</div>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+  <!-- Joueur 2 (haut) -->
+  <div class="player-panel" id="panel-p2">
+    <div class="player-header"><span>👤 Joueur 2 <span id="youP2" style="color:var(--orange);"></span></span><span>Pot: <b id="pot-p2">11</b></span></div>
+    <div class="zone-row" id="cols-p2"></div>
+  </div>
+
+  <!-- Centre -->
+  <div class="center-wrap" id="centerWrap"></div>
+  <div class="center-actions" id="centerActions"></div>
+
+  <!-- Joueur 1 (bas) -->
+  <div class="player-panel" id="panel-p1">
+    <div class="player-header"><span>👤 Joueur 1 <span id="youP1" style="color:var(--orange);"></span></span><span>Pot: <b id="pot-p1">11</b></span></div>
+    <div class="zone-row" id="cols-p1"></div>
+  </div>
+
+  <details>
+    <summary>Règles & simplifications de cette version</summary>
+    <p><b>But :</b> vider ses 5 colonnes alors qu'on n'a plus aucune carte dans son pot → victoire finale immédiate.</p>
+    <p><b>Comment jouer :</b> touche une carte visible d'une de tes colonnes puis touche une pile centrale si sa valeur est +1 ou -1 (l'As boucle avec le Roi). Les couleurs ne comptent pas. Pas de tour par tour : les deux joueurs peuvent jouer à tout moment.</p>
+    <p><b>Colonne vide :</b> tu peux y déposer la carte visible d'une autre de tes colonnes pour libérer ce qui est caché dessous.</p>
+    <p><b>Blocage :</b> si plus aucun coup n'est possible, le bouton "Débloquer" apparaît : chacun pioche une carte de son pot vers sa pile.</p>
+    <p><b>Fin de manche :</b> dès que les 5 colonnes d'un joueur sont vides, la manche s'arrête. Ce joueur récupère automatiquement la pile centrale la plus petite (l'autre récupère la plus grosse), puis chacun mélange ses cartes restantes + sa pile récupérée pour reformer ses 5 colonnes.</p>
+    <p><b>Mode à distance :</b> chaque téléphone ne peut jouer que ses propres colonnes ; le plateau se synchronise automatiquement en temps réel entre les deux appareils.</p>
+    <button class="secondary" onclick="location.reload()">Quitter la partie</button>
+  </details>
+
 </div>
-
-<!-- Centre -->
-<div class="center-wrap" id="centerWrap"></div>
-<div class="center-actions" id="centerActions"></div>
-
-<!-- Joueur 1 (bas) -->
-<div class="player-panel">
-  <div class="player-header"><span>👤 Joueur 1</span><span>Pot: <b id="pot-p1">11</b></span></div>
-  <div class="zone-row" id="cols-p1"></div>
-</div>
-
-<details>
-  <summary>Règles & simplifications de cette version</summary>
-  <p><b>But :</b> vider ses 5 colonnes alors qu'on n'a plus aucune carte dans son pot → victoire finale immédiate.</p>
-  <p><b>Comment jouer :</b> touche une carte visible d'une de tes colonnes puis touche une pile centrale si sa valeur est +1 ou -1 (l'As boucle avec le Roi). Les couleurs ne comptent pas. Pas de tour par tour : les deux joueurs peuvent jouer à tout moment, dans n'importe quel ordre.</p>
-  <p><b>Colonne vide :</b> tu peux y déposer la carte visible d'une autre de tes colonnes pour libérer ce qui est caché dessous.</p>
-  <p><b>Blocage :</b> si plus aucun coup n'est possible, le bouton "Débloquer" apparaît : chacun pioche une carte de son pot vers sa pile.</p>
-  <p><b>Fin de manche :</b> dès que les 5 colonnes d'un joueur sont vides, la manche s'arrête. Ce joueur récupère automatiquement la pile centrale la plus petite (l'autre récupère la plus grosse), puis chacun mélange ses cartes restantes + sa pile récupérée pour reformer ses 5 colonnes.</p>
-  <p><b>Simplifications :</b> sur un même écran, une seule carte peut être "sélectionnée" à la fois (pas de tape simultanée multi-doigts) — l'attribution de la pile la plus petite au joueur qui termine est donc automatique plutôt qu'une course à la tape. Le reste (boucle As/Roi, colonnes tronquées en fin de partie, victoire à pot vide) suit la règle exacte que tu as donnée.</p>
-</details>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <h2 id="modalTitle"></h2>
     <p id="modalText"></p>
     <div id="modalCountdown" class="countdown" style="display:none;"></div>
-    <button id="modalBtn" class="big" onclick="modalAction()">Continuer</button>
+    <button id="modalBtn" class="big">Continuer</button>
   </div>
 </div>
 
+<!-- Firebase (mode à distance uniquement) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
 <script>
+/* =========================================================================
+   CONFIGURATION FIREBASE — à remplacer par la config de TON projet Firebase
+   (même principe que pour Quizz CARL) :
+   Console Firebase > Paramètres du projet > Tes applications > SDK config
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+let firebaseReady = false;
+let db = null;
+try{
+  if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY"){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    firebaseReady = true;
+  }
+}catch(e){
+  console.error('Firebase init error', e);
+  firebaseReady = false;
+}
+if(!firebaseReady){
+  document.getElementById('firebaseWarning').style.display='block';
+  document.getElementById('onlineButtons').querySelectorAll('button').forEach(b=>b.disabled=true);
+}
+
+/* ========================= LOGIQUE PURE DU JEU ========================= */
+
 const SUITS = ['♠','♥','♦','♣'];
 const SUIT_COLOR = {'♠':'black','♣':'black','♥':'red','♦':'red'};
 
@@ -347,31 +475,280 @@ function cardAdjacent(r1, r2){
 
 function other(owner){ return owner==='p1' ? 'p2' : 'p1'; }
 
-let state = null;
-let matchOver = false;
+function cloneState(s){ return JSON.parse(JSON.stringify(s)); }
 
-function initMatch(){
-  matchOver = false;
+function txNewMatch(){
   const deck = freshShuffledDeck();
   const r1 = buildReserve(deck.slice(0,26));
   const r2 = buildReserve(deck.slice(26,52));
-  state = {
-    p1: { columns:r1.columns, pot:r1.pot },
-    p2: { columns:r2.columns, pot:r2.pot },
-    center: [],
-    selected: null,
-    roundActive: false,
-    blocked: false
+  return {
+    p1:{ columns:r1.columns, pot:r1.pot },
+    p2:{ columns:r2.columns, pot:r2.pot },
+    center:[], roundActive:false, matchOver:false, winner:null, roundEndInfo:null
   };
+}
+
+function finalizeAfterMove(ns, owner){
+  const p = ns[owner];
+  const colsEmpty = p.columns.every(c=>c.length===0);
+  if(!colsEmpty) return ns;
+
+  if(p.pot.length===0){
+    ns.matchOver = true;
+    ns.winner = owner;
+    ns.roundActive = false;
+    return ns;
+  }
+
+  const opponent = other(owner);
+  let finisherGain=[], opponentGain=[];
+  if(ns.center.length===2){
+    const [pA,pB] = ns.center;
+    if(pA.cards.length <= pB.cards.length){ finisherGain=pA.cards; opponentGain=pB.cards; }
+    else { finisherGain=pB.cards; opponentGain=pA.cards; }
+  } else if(ns.center.length===1){
+    finisherGain = ns.center[0].cards;
+  }
+
+  const newFinisherDeck = shuffle([...ns[owner].pot, ...flattenColumns(ns[owner].columns), ...finisherGain]);
+  const newOppDeck = shuffle([...ns[opponent].pot, ...flattenColumns(ns[opponent].columns), ...opponentGain]);
+  const rf = buildReserve(newFinisherDeck);
+  const ro = buildReserve(newOppDeck);
+  ns[owner].columns = rf.columns; ns[owner].pot = rf.pot;
+  ns[opponent].columns = ro.columns; ns[opponent].pot = ro.pot;
+  ns.center = [];
+  ns.roundActive = false;
+  ns.roundEndInfo = { finisher:owner, finisherGain:finisherGain.length, opponentGain:opponentGain.length, ts:Date.now() };
+  return ns;
+}
+
+function txPlayToCenter(cur, owner, colIdx, pileIdx){
+  if(!cur || !cur.roundActive) return undefined;
+  const ns = cloneState(cur);
+  const col = ns[owner].columns[colIdx];
+  if(!col || col.length===0) return undefined;
+  const card = col[col.length-1];
+  const pile = ns.center[pileIdx];
+  if(!pile || pile.cards.length===0) return undefined;
+  const top = pile.cards[pile.cards.length-1];
+  if(!cardAdjacent(card.rank, top.rank)) return undefined;
+  col.pop();
+  pile.cards.push(card);
+  return finalizeAfterMove(ns, owner);
+}
+
+function txMoveToEmpty(cur, owner, srcColIdx, destColIdx){
+  if(!cur || !cur.roundActive) return undefined;
+  if(srcColIdx===destColIdx) return undefined;
+  const ns = cloneState(cur);
+  const srcCol = ns[owner].columns[srcColIdx];
+  const destCol = ns[owner].columns[destColIdx];
+  if(!srcCol || srcCol.length===0) return undefined;
+  if(!destCol || destCol.length!==0) return undefined;
+  const card = srcCol.pop();
+  destCol.push(card);
+  return finalizeAfterMove(ns, owner);
+}
+
+function txUnblock(cur){
+  if(!cur || !cur.roundActive) return undefined;
+  const ns = cloneState(cur);
+  let any=false;
+  for(const pile of ns.center){
+    if(ns[pile.owner].pot.length>0){ pile.cards.push(ns[pile.owner].pot.pop()); any=true; }
+  }
+  if(!any) return undefined;
+  return ns;
+}
+
+function txStartRound(cur){
+  if(!cur) return undefined;
+  if(cur.roundActive || cur.matchOver) return undefined;
+  const ns = cloneState(cur);
+  const piles=[];
+  if(ns.p1.pot.length>0) piles.push({owner:'p1', cards:[ns.p1.pot.pop()]});
+  if(ns.p2.pot.length>0) piles.push({owner:'p2', cards:[ns.p2.pot.pop()]});
+  ns.center = piles;
+  ns.roundActive = true;
+  ns.roundEndInfo = null;
+  return ns;
+}
+
+function anyLegalMove(s){
+  const tops=[];
+  for(const owner of ['p1','p2']){
+    for(const col of s[owner].columns){ if(col.length>0) tops.push(col[col.length-1]); }
+  }
+  for(const t of tops){
+    for(const pile of s.center){
+      if(pile.cards.length>0 && cardAdjacent(t.rank, pile.cards[pile.cards.length-1].rank)) return true;
+    }
+  }
+  return false;
+}
+
+/* ========================= ETAT LOCAL / MODE ========================= */
+
+let mode = null;        // 'local' | 'online'
+let myRole = null;      // 'p1' | 'p2' (online) — null en local (les 2 sont jouables)
+let roomCode = null;
+let roomRef = null;
+let state = null;       // état du plateau (synchronisé si online)
+let localSelected = null; // sélection UI, jamais synchronisée
+let lastRoundTs = null;
+let matchOverModalShown = false;
+
+function setMsg(t){ document.getElementById('msg').textContent = t || ''; }
+
+function applyTx(updaterFn, onInvalid){
+  if(mode==='online'){
+    roomRef.child('state').transaction(cur => updaterFn(cur), (err, committed)=>{
+      if(err){ setMsg('Erreur réseau, réessaie.'); return; }
+      if(!committed && onInvalid) onInvalid();
+    });
+  } else {
+    const ns = updaterFn(state);
+    if(ns===undefined){ if(onInvalid) onInvalid(); return; }
+    state = ns;
+    render();
+  }
+}
+
+/* ========================= LOBBY : LOCAL ========================= */
+
+function startLocalMode(){
+  mode = 'local';
+  myRole = null;
+  state = txNewMatch();
+  document.getElementById('startMenu').style.display='none';
+  document.getElementById('gameScreen').style.display='block';
+  document.getElementById('youP1').textContent='';
+  document.getElementById('youP2').textContent='';
   setMsg('Nouvelle partie ! Appuie sur "Démarrer la manche".');
   render();
 }
 
-function totalCards(owner){
-  return state[owner].pot.length + flattenColumns(state[owner].columns).length;
+/* ========================= LOBBY : EN LIGNE ========================= */
+
+function generateCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans 0/O/1/I pour éviter les confusions
+  let s='';
+  for(let i=0;i<4;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
 }
 
-function setMsg(t){ document.getElementById('msg').textContent = t || ''; }
+function setLobbyStatus(t){ document.getElementById('lobbyStatus').innerHTML = t || ''; }
+
+async function createRoom(){
+  if(!firebaseReady) return;
+  roomCode = generateCode();
+  myRole = 'p1';
+  mode = 'online';
+  const initialState = txNewMatch();
+  roomRef = db.ref('rooms/'+roomCode);
+  try{
+    await roomRef.set({ players:{p1:true}, state:initialState, createdAt: Date.now() });
+  }catch(e){
+    setLobbyStatus('Erreur de connexion à Firebase. Vérifie ta configuration.');
+    return;
+  }
+  setLobbyStatus(`<div class="roomcode-display">${roomCode}</div>Donne ce code à l'autre joueur.<br><span class="spinner"></span>En attente du joueur 2…`);
+  roomRef.child('players/p2').on('value', snap=>{
+    if(snap.val()){
+      attachRoomListeners();
+      enterGameScreen();
+    }
+  });
+}
+
+async function joinRoom(code){
+  if(!firebaseReady) return;
+  code = (code||'').trim().toUpperCase();
+  if(code.length!==4){ setLobbyStatus('Entre un code à 4 caractères.'); return; }
+  const ref = db.ref('rooms/'+code);
+  let snap;
+  try{
+    snap = await ref.once('value');
+  }catch(e){
+    setLobbyStatus('Erreur de connexion à Firebase.');
+    return;
+  }
+  const data = snap.val();
+  if(!data){ setLobbyStatus('Partie introuvable, vérifie le code.'); return; }
+  if(data.players && data.players.p2){ setLobbyStatus('Cette partie est déjà complète.'); return; }
+  roomCode = code;
+  myRole = 'p2';
+  mode = 'online';
+  roomRef = ref;
+  await roomRef.child('players/p2').set(true);
+  attachRoomListeners();
+  enterGameScreen();
+}
+
+function attachRoomListeners(){
+  roomRef.child('state').on('value', snap=>{
+    const val = snap.val();
+    if(val){ state = val; render(); }
+  });
+}
+
+function enterGameScreen(){
+  document.getElementById('startMenu').style.display='none';
+  document.getElementById('gameScreen').style.display='block';
+  document.getElementById('youP1').textContent = myRole==='p1' ? '(toi)' : '';
+  document.getElementById('youP2').textContent = myRole==='p2' ? '(toi)' : '';
+  setMsg(`Connecté ! Tu es le Joueur ${myRole==='p1'?'1':'2'}.`);
+}
+
+/* ========================= INTERACTIONS DE JEU ========================= */
+
+function canSelect(owner){
+  return mode==='local' || owner===myRole;
+}
+
+function clearSelection(){ localSelected = null; }
+
+function handleColumnClick(owner, colIdx){
+  if(!state || !state.roundActive) return;
+  const col = state[owner].columns[colIdx];
+
+  if(localSelected){
+    const sel = localSelected;
+    if(col.length===0 && sel.owner===owner && sel.colIdx!==colIdx){
+      const capturedSel = sel;
+      clearSelection();
+      applyTx(cur=>txMoveToEmpty(cur, capturedSel.owner, capturedSel.colIdx, colIdx), ()=>{ setMsg('Coup invalide.'); render(); });
+      render();
+      return;
+    }
+  }
+
+  if(!canSelect(owner)){
+    setMsg("Ce n'est pas ta colonne.");
+    return;
+  }
+  if(col.length===0){ clearSelection(); render(); return; }
+  if(localSelected && localSelected.owner===owner && localSelected.colIdx===colIdx){
+    clearSelection();
+    render();
+    return;
+  }
+  localSelected = {owner, colIdx};
+  setMsg('');
+  render();
+}
+
+function handleCenterClick(pileIdx){
+  if(!state || !state.roundActive || !localSelected) return;
+  const capturedSel = localSelected;
+  clearSelection();
+  applyTx(cur=>txPlayToCenter(cur, capturedSel.owner, capturedSel.colIdx, pileIdx), ()=>{ setMsg("Coup invalide : ce n'est pas +1 ou -1."); render(); });
+  render();
+}
+
+function unblock(){
+  applyTx(cur=>txUnblock(cur), ()=>{ setMsg('Rien à débloquer pour le moment.'); render(); });
+}
 
 function startRoundCountdown(){
   const overlay = document.getElementById('modalOverlay');
@@ -393,164 +770,16 @@ function startRoundCountdown(){
       cd.style.display='none';
       document.getElementById('modalBtn').style.display='inline-block';
       overlay.classList.remove('show');
-      actuallyStartRound();
+      applyTx(cur=>txStartRound(cur), ()=>{});
     }
   }, 550);
 }
 
-function actuallyStartRound(){
-  const piles=[];
-  if(state.p1.pot.length>0) piles.push({owner:'p1', cards:[state.p1.pot.pop()]});
-  if(state.p2.pot.length>0) piles.push({owner:'p2', cards:[state.p2.pot.pop()]});
-  state.center = piles;
-  state.roundActive = true;
-  state.selected = null;
-  checkBlocked();
-  setMsg('À vous de jouer !');
-  render();
+/* ========================= RENDU ========================= */
+
+function totalCards(owner){
+  return state[owner].pot.length + flattenColumns(state[owner].columns).length;
 }
-
-function handleColumnClick(owner, colIdx){
-  if(!state.roundActive) return;
-  const col = state[owner].columns[colIdx];
-
-  if(state.selected){
-    const sel = state.selected;
-    // move to empty column of the SAME owner as the selected card
-    if(col.length===0 && sel.owner===owner && sel.colIdx!==colIdx){
-      const srcCol = state[sel.owner].columns[sel.colIdx];
-      if(srcCol.length>0){
-        const card = srcCol.pop();
-        col.push(card);
-        clearSelection();
-        afterMove(owner);
-        return;
-      }
-    }
-  }
-
-  if(col.length===0){ clearSelection(); render(); return; }
-  if(state.selected && state.selected.owner===owner && state.selected.colIdx===colIdx){
-    clearSelection();
-    render();
-    return;
-  }
-  state.selected = {owner, colIdx};
-  render();
-}
-
-function handleCenterClick(pileIdx){
-  if(!state.roundActive || !state.selected) return;
-  const sel = state.selected;
-  const srcCol = state[sel.owner].columns[sel.colIdx];
-  if(!srcCol || srcCol.length===0){ clearSelection(); render(); return; }
-  const card = srcCol[srcCol.length-1];
-  const pile = state.center[pileIdx];
-  if(!pile || pile.cards.length===0) return;
-  const top = pile.cards[pile.cards.length-1];
-  if(cardAdjacent(card.rank, top.rank)){
-    srcCol.pop();
-    pile.cards.push(card);
-    const owner = sel.owner;
-    clearSelection();
-    afterMove(owner);
-  } else {
-    setMsg("Coup invalide : ce n'est pas +1 ou -1.");
-  }
-}
-
-function clearSelection(){ state.selected = null; }
-
-function afterMove(owner){
-  const p = state[owner];
-  const colsEmpty = p.columns.every(c=>c.length===0);
-  if(colsEmpty){
-    if(p.pot.length===0){
-      endMatch(owner);
-      return;
-    } else {
-      endRound(owner);
-      return;
-    }
-  }
-  checkBlocked();
-  render();
-}
-
-function checkBlocked(){
-  const tops=[];
-  for(const owner of ['p1','p2']){
-    for(const col of state[owner].columns){ if(col.length>0) tops.push(col[col.length-1]); }
-  }
-  let found=false;
-  for(const t of tops){
-    for(const pile of state.center){
-      if(pile.cards.length>0 && cardAdjacent(t.rank, pile.cards[pile.cards.length-1].rank)){ found=true; break; }
-    }
-    if(found) break;
-  }
-  state.blocked = !found;
-  if(state.blocked) setMsg('Blocage ! Personne ne peut jouer. Touchez "Débloquer".');
-}
-
-function unblock(){
-  let any=false;
-  for(const pile of state.center){
-    if(state[pile.owner].pot.length>0){
-      pile.cards.push(state[pile.owner].pot.pop());
-      any=true;
-    }
-  }
-  clearSelection();
-  checkBlocked();
-  if(any) setMsg('Nouvelles cartes au centre !');
-  render();
-}
-
-function endRound(finisher){
-  const opponent = other(finisher);
-  let finisherGain=[], opponentGain=[];
-  if(state.center.length===2){
-    const [pA,pB] = state.center;
-    if(pA.cards.length <= pB.cards.length){ finisherGain=pA.cards; opponentGain=pB.cards; }
-    else { finisherGain=pB.cards; opponentGain=pA.cards; }
-  } else if(state.center.length===1){
-    finisherGain = state.center[0].cards;
-  }
-
-  const newFinisherDeck = shuffle([...state[finisher].pot, ...flattenColumns(state[finisher].columns), ...finisherGain]);
-  const newOpponentDeck = shuffle([...state[opponent].pot, ...flattenColumns(state[opponent].columns), ...opponentGain]);
-
-  const rf = buildReserve(newFinisherDeck);
-  const ro = buildReserve(newOpponentDeck);
-  state[finisher].columns = rf.columns; state[finisher].pot = rf.pot;
-  state[opponent].columns = ro.columns; state[opponent].pot = ro.pot;
-  state.center = [];
-  state.roundActive = false;
-  state.selected = null;
-
-  const fName = finisher==='p1'?'Joueur 1':'Joueur 2';
-  document.getElementById('modalTitle').textContent = `${fName} finit ses colonnes en premier !`;
-  document.getElementById('modalText').textContent = `${fName} récupère ${finisherGain.length} carte(s), l'adversaire récupère ${opponentGain.length} carte(s). Nouvelle réserve mélangée pour la manche suivante.`;
-  document.getElementById('modalBtn').textContent = 'Manche suivante';
-  document.getElementById('modalBtn').onclick = ()=>{ document.getElementById('modalOverlay').classList.remove('show'); startRoundCountdown(); };
-  document.getElementById('modalOverlay').classList.add('show');
-  render();
-}
-
-function endMatch(winner){
-  matchOver = true;
-  state.roundActive = false;
-  const wName = winner==='p1'?'Joueur 1':'Joueur 2';
-  document.getElementById('modalTitle').textContent = `🏆 ${wName} remporte la partie !`;
-  document.getElementById('modalText').textContent = `Pot totalement vide + colonnes vidées : victoire finale.`;
-  document.getElementById('modalBtn').textContent = 'Nouvelle partie';
-  document.getElementById('modalBtn').onclick = ()=>{ document.getElementById('modalOverlay').classList.remove('show'); initMatch(); };
-  document.getElementById('modalOverlay').classList.add('show');
-  render();
-}
-
-function modalAction(){}
 
 function cardHtml(card, extraClasses, onclickAttr){
   const color = SUIT_COLOR[card.suit];
@@ -560,20 +789,20 @@ function cardHtml(card, extraClasses, onclickAttr){
 }
 
 function isColSelected(owner, colIdx){
-  return state.selected && state.selected.owner===owner && state.selected.colIdx===colIdx;
+  return localSelected && localSelected.owner===owner && localSelected.colIdx===colIdx;
 }
 
 function isValidEmptyTarget(owner, colIdx){
-  if(!state.selected) return false;
-  const sel = state.selected;
+  if(!localSelected) return false;
+  const sel = localSelected;
   if(sel.owner!==owner) return false;
   if(sel.colIdx===colIdx) return false;
   return state[owner].columns[colIdx].length===0;
 }
 
 function isValidCenterTarget(pileIdx){
-  if(!state.selected) return false;
-  const sel = state.selected;
+  if(!localSelected) return false;
+  const sel = localSelected;
   const srcCol = state[sel.owner].columns[sel.colIdx];
   if(!srcCol || srcCol.length===0) return false;
   const card = srcCol[srcCol.length-1];
@@ -608,10 +837,15 @@ function renderColumns(owner){
 }
 
 function render(){
+  if(!state) return;
+
   document.getElementById('totalP1').textContent = totalCards('p1');
   document.getElementById('totalP2').textContent = totalCards('p2');
   document.getElementById('pot-p1').textContent = state.p1.pot.length;
   document.getElementById('pot-p2').textContent = state.p2.pot.length;
+
+  document.getElementById('panel-p1').className = 'player-panel' + (myRole==='p1' ? ' me' : '');
+  document.getElementById('panel-p2').className = 'player-panel' + (myRole==='p2' ? ' me' : '');
 
   renderColumns('p1');
   renderColumns('p2');
@@ -631,18 +865,50 @@ function render(){
   }
 
   const ca = document.getElementById('centerActions');
-  if(!state.roundActive && !matchOver){
+  if(!state.roundActive && !state.matchOver){
     ca.innerHTML = `<button class="big" onclick="startRoundCountdown()">▶ Démarrer la manche</button>`;
-  } else if(state.blocked){
+  } else if(state.roundActive && anyLegalMove(state)===false){
     ca.innerHTML = `<button onclick="unblock()">🔔 Débloquer (piocher)</button>`;
   } else {
     ca.innerHTML = '';
   }
 
-  document.getElementById('statusIndicator').innerHTML = matchOver ? '<b>Partie terminée</b>' : (state.roundActive ? 'En jeu !' : 'En attente');
-}
+  document.getElementById('statusIndicator').innerHTML = state.matchOver ? '<b>Partie terminée</b>' : (state.roundActive ? 'En jeu !' : 'En attente');
 
-initMatch();
+  // Fin de manche (pas la partie complète)
+  if(state.roundEndInfo && state.roundEndInfo.ts !== lastRoundTs){
+    lastRoundTs = state.roundEndInfo.ts;
+    const info = state.roundEndInfo;
+    const fName = info.finisher==='p1' ? 'Joueur 1' : 'Joueur 2';
+    document.getElementById('modalTitle').textContent = `${fName} finit ses colonnes en premier !`;
+    document.getElementById('modalText').textContent = `${fName} récupère ${info.finisherGain} carte(s), l'adversaire récupère ${info.opponentGain} carte(s). Nouvelle réserve mélangée pour la manche suivante.`;
+    document.getElementById('modalCountdown').style.display='none';
+    const btn = document.getElementById('modalBtn');
+    btn.style.display='inline-block';
+    btn.textContent = 'Manche suivante';
+    btn.onclick = ()=>{ document.getElementById('modalOverlay').classList.remove('show'); startRoundCountdown(); };
+    document.getElementById('modalOverlay').classList.add('show');
+  }
+
+  // Victoire finale
+  if(state.matchOver && !matchOverModalShown){
+    matchOverModalShown = true;
+    const wName = state.winner==='p1' ? 'Joueur 1' : 'Joueur 2';
+    document.getElementById('modalTitle').textContent = `🏆 ${wName} remporte la partie !`;
+    document.getElementById('modalText').textContent = `Pot totalement vide + colonnes vidées : victoire finale.`;
+    document.getElementById('modalCountdown').style.display='none';
+    const btn = document.getElementById('modalBtn');
+    btn.style.display='inline-block';
+    btn.textContent = 'Nouvelle partie';
+    btn.onclick = ()=>{
+      document.getElementById('modalOverlay').classList.remove('show');
+      matchOverModalShown = false;
+      lastRoundTs = null;
+      applyTx(()=>txNewMatch(), ()=>{});
+    };
+    document.getElementById('modalOverlay').classList.add('show');
+  }
+}
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
