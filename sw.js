@@ -1,13 +1,9 @@
 // Bump ce numéro de version à chaque mise à jour du jeu pour forcer le rafraîchissement du cache
-const CACHE_NAME = 'crapette-carl-v3';
+const CACHE_NAME = 'crapette-carl-v4';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-180.png',
-  './icons/icon-32.png'
+  './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {

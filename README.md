@@ -4,13 +4,18 @@ Crapette rapide (Speed/Spit) à 2 joueurs.
 - **Mode local** : les deux joueurs sur le même téléphone.
 - **Mode à distance** : chacun sur son téléphone, synchronisé en temps réel via Firebase.
 
+Le jeu tient dans 3 fichiers seulement (`index.html`, `manifest.json`, `sw.js`) : les icônes sont
+intégrées directement en base64 dans le code, il n'y a donc pas de dossier `icons/` séparé à
+uploader (ça évitait un problème classique d'upload GitHub qui cassait l'installation en PWA).
+
 ## Déploiement sur GitHub Pages
 
 1. Crée un nouveau dépôt GitHub (ex: `crapette-carl`).
-2. Dépose tout le contenu de ce dossier à la racine du dépôt (`index.html`, `manifest.json`, `sw.js`, dossier `icons/`).
+2. Dépose les 3 fichiers (`index.html`, `manifest.json`, `sw.js`) à la racine du dépôt.
 3. Va dans **Settings → Pages**, choisis la branche `main` et le dossier `/ (root)`, puis enregistre.
 4. Ton appli sera en ligne à `https://<ton-compte>.github.io/<nom-du-repo>/`.
-5. Sur mobile, ouvre cette adresse puis "Ajouter à l'écran d'accueil" pour l'installer comme une app (PWA).
+5. Sur Android/Chrome : ouvre le lien, un bandeau ou le menu ⋮ propose "Installer l'application".
+   Sur iPhone/Safari : bouton Partager → "Sur l'écran d'accueil".
 
 Le mode local fonctionne directement, sans rien configurer.
 
@@ -42,4 +47,4 @@ Le mode local fonctionne directement, sans rien configurer.
 
 ## Mise à jour
 
-Si tu modifies `index.html`, `manifest.json` ou les icônes, incrémente `CACHE_NAME` dans `sw.js` (ex: `crapette-carl-v3`) pour forcer les appareils à récupérer la nouvelle version au lieu de servir l'ancienne version en cache.
+Si tu modifies `index.html` ou `manifest.json`, incrémente `CACHE_NAME` dans `sw.js` (ex: `crapette-carl-v5`) pour forcer les appareils à récupérer la nouvelle version au lieu de servir l'ancienne version en cache.
