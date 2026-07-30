@@ -396,16 +396,15 @@
    Console Firebase > Paramètres du projet > Tes applications > SDK config
    ========================================================================= */
 const firebaseConfig = {
-  apiKey: "AIzaSyC_xeHgz-gkaHvIqNi3th1kq5fdj6g6jLY",
-  authDomain: "crapette-carl.firebaseapp.com",
-  databaseURL: "https://crapette-carl-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "crapette-carl",
-  storageBucket: "crapette-carl.firebasestorage.app",
-  messagingSenderId: "80416728300",
-  appId: "1:80416728300:web:83171f572fd629e27871c9",
-  measurementId: "G-LC57MXVG3X"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
-  
+
 let firebaseReady = false;
 let db = null;
 try{
@@ -477,6 +476,37 @@ function cardAdjacent(r1, r2){
 function other(owner){ return owner==='p1' ? 'p2' : 'p1'; }
 
 function cloneState(s){ return JSON.parse(JSON.stringify(s)); }
+
+/* Firebase Realtime Database ne stocke pas les tableaux/valeurs vides : une colonne
+   vidée ([]) ou la pile centrale avant le début d'une manche ([]) disparaissent tout
+   simplement à l'écriture, et reviennent en lecture sous forme de `null`/`undefined`
+   (voire d'objet à trous au lieu d'un tableau). On reconstruit donc toujours une
+   structure propre après une lecture réseau, avant d'utiliser les données. */
+function normalizeState(val){
+  if(!val) return null;
+  const s = val;
+  for(const owner of ['p1','p2']){
+    if(!s[owner]) s[owner] = {};
+    const rawCols = s[owner].columns;
+    const cols = [];
+    for(let i=0;i<5;i++){
+      const c = rawCols ? rawCols[i] : null;
+      cols.push(Array.isArray(c) ? c : []);
+    }
+    s[owner].columns = cols;
+    s[owner].pot = Array.isArray(s[owner].pot) ? s[owner].pot : [];
+  }
+  const rawCenter = s.center;
+  if(!Array.isArray(rawCenter)){
+    s.center = [];
+  } else {
+    s.center = rawCenter.filter(Boolean).map(p => ({
+      owner: p.owner,
+      cards: Array.isArray(p.cards) ? p.cards : []
+    }));
+  }
+  return s;
+}
 
 function txNewMatch(){
   const deck = freshShuffledDeck();
@@ -603,7 +633,7 @@ function setMsg(t){ document.getElementById('msg').textContent = t || ''; }
 
 function applyTx(updaterFn, onInvalid){
   if(mode==='online'){
-    roomRef.child('state').transaction(cur => updaterFn(cur), (err, committed)=>{
+    roomRef.child('state').transaction(cur => updaterFn(normalizeState(cur)), (err, committed)=>{
       if(err){ setMsg('Erreur réseau, réessaie.'); return; }
       if(!committed && onInvalid) onInvalid();
     });
@@ -688,7 +718,7 @@ async function joinRoom(code){
 
 function attachRoomListeners(){
   roomRef.child('state').on('value', snap=>{
-    const val = snap.val();
+    const val = normalizeState(snap.val());
     if(val){ state = val; render(); }
   });
 }

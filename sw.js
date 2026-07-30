@@ -1,5 +1,5 @@
 // Bump ce numéro de version à chaque mise à jour du jeu pour forcer le rafraîchissement du cache
-const CACHE_NAME = 'crapette-carl-v2';
+const CACHE_NAME = 'crapette-carl-v3';
 const ASSETS = [
   './',
   './index.html',
